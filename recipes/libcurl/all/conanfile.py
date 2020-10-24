@@ -118,7 +118,7 @@ class LibcurlConan(ConanFile):
         if self._is_mingw and tools.os_info.is_windows and not tools.get_env("CONAN_BASH_PATH") and \
            tools.os_info.detect_windows_subsystem() != "msys2":
             self.build_requires("msys2/20190524")
-        elif self._is_win_x_android:
+        elif self._should_build_with_cmake():
             self.build_requires("ninja/1.9.0")
         elif self.settings.os == "Linux":
             self.build_requires("libtool/2.4.6")
@@ -157,7 +157,7 @@ class LibcurlConan(ConanFile):
 
     def build(self):
         self._patch_misc_files()
-        if self.settings.compiler == "Visual Studio" or self._is_win_x_android:
+        if self._should_build_with_cmake():
             self._build_with_cmake()
         else:
             self._build_with_autotools()
@@ -419,10 +419,15 @@ class LibcurlConan(ConanFile):
 
         return self._autotools, self._configure_autotools_vars()
 
+    def _should_build_with_cmake(self):
+        return (self.settings.compiler == "Visual Studio"
+            or self._is_win_x_android
+            or tools.is_apple_os(self.settings.os))
+
     def _configure_cmake(self):
         if self._cmake:
             return self._cmake
-        if self._is_win_x_android:
+        if self._should_build_with_cmake():
             self._cmake = CMake(self, generator="Ninja")
         else:
             self._cmake = CMake(self)
@@ -439,6 +444,7 @@ class LibcurlConan(ConanFile):
         self._cmake.definitions["CMAKE_USE_WINSSL"] = self.options.get_safe("with_winssl", False)
         self._cmake.definitions["CMAKE_USE_OPENSSL"] = self.options.with_openssl
         self._cmake.definitions["CMAKE_USE_WOLFSSL"] = self.options.with_wolfssl
+        self._cmake.definitions["CMAKE_USE_SECTRANSP"] = self.options.darwin_ssl
         self._cmake.configure(build_folder=self._build_subfolder)
         return self._cmake
 
@@ -456,7 +462,7 @@ class LibcurlConan(ConanFile):
         self.copy(pattern="COPYING", dst="licenses", src=self._source_subfolder)
 
         # Execute install
-        if self.settings.compiler == "Visual Studio" or self._is_win_x_android:
+        if self._should_build_with_cmake():
             cmake = self._configure_cmake()
             cmake.install()
         else:
