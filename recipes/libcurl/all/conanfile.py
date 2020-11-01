@@ -439,6 +439,12 @@ class LibcurlConan(ConanFile):
         self._cmake.definitions["CMAKE_DEBUG_POSTFIX"] = ""
         self._cmake.definitions["CMAKE_USE_LIBSSH2"] = self.options.with_libssh2
 
+        # Secure Transport uses Keychain for certificate discovery. Every other engine,
+        # if included, should provide a certificate during run time.
+        if self.options.darwin_ssl:
+            self._cmake.definitions["CURL_CA_PATH"] = "none"
+            self._cmake.definitions["CURL_CA_BUNDLE"] = "none"
+
         # all these options are exclusive. set just one of them
         # mac builds do not use cmake so don't even bother about darwin_ssl
         self._cmake.definitions["CMAKE_USE_WINSSL"] = self.options.get_safe("with_winssl", False)
@@ -478,7 +484,9 @@ class LibcurlConan(ConanFile):
             self.copy(pattern="*.def", dst="lib", keep_path=False)
             self.copy(pattern="*.lib", dst="lib", keep_path=False)
 
-        self.copy("cacert.pem", dst="res")
+        # Secure Transport does not need a bundled certificate.
+        if not self.options.darwin_ssl:
+            self.copy("cacert.pem", dst="res")
 
         # no need to distribute share folder (docs/man pages)
         tools.rmdir(os.path.join(self.package_folder, "share"))
