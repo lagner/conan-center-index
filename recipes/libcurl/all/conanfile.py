@@ -485,7 +485,7 @@ class LibcurlConan(ConanFile):
             self.copy(pattern="*.lib", dst="lib", keep_path=False)
 
         # Secure Transport does not need a bundled certificate.
-        if not self.options.darwin_ssl:
+        if "darwin_ssl" in self.options and not self.options.darwin_ssl:
             self.copy("cacert.pem", dst="res")
 
         # no need to distribute share folder (docs/man pages)
